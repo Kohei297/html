@@ -18,7 +18,7 @@
 - git status
     -  gitの状態を確認
 
-- git add "ex_commit_file_pass"
+- git add "ex_commit_file_pass"     git add .
     - ファイルがコミット準備される
 
 - git commit
@@ -35,8 +35,14 @@
 - git marge "branch_name"
     - ”branch_name”がmasterにマージされる
 
+- git pull
+    -  リモートリポジトリの状態をローカルリポジトリ全体に反映
 
+- git fetch
+    - リモートリポジトリの状態をローカルの上位ブランチに反映
 
+- git marge
+    - ローカルの上位ブランチの状態をローカルの下位ブランチに反映
 
 
 
