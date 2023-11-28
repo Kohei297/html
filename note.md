@@ -26,6 +26,7 @@
 
 - git log
     - コミット等のログを確認できる
+    - [:q]でログの終了
 
 - git push origin ”buranch_name”
     - ブランチを指定してpushできる
@@ -47,7 +48,13 @@
 :q syuuryou
 
 
-## ls
+
+## Linuxコマンド
+- cd "directory_path"
+    - ディレクトリの移動
+
+- ls
     - 中身を確認できる 
+    
 
 
