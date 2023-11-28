@@ -8,6 +8,14 @@
     - 現在のカレントディレクトリに直接ファイル形式でコピーされる
     - 勝手に紐ずく
 
+- git pull
+    -  リモートリポジトリの状態をローカルリポジトリ全体に反映
+
+- git fetch
+    - リモートリポジトリの状態をローカルの上位ブランチに反映
+
+- git marge
+    - ローカルの上位ブランチの状態をローカルの下位ブランチに反映
 - git branch 
     - ブランチを確認
     - masterに当たるブランチの名前を確認しておく    "master"
@@ -35,15 +43,6 @@
 - git checkout "master"
 - git marge "branch_name"
     - ”branch_name”がmasterにマージされる
-
-- git pull
-    -  リモートリポジトリの状態をローカルリポジトリ全体に反映
-
-- git fetch
-    - リモートリポジトリの状態をローカルの上位ブランチに反映
-
-- git marge
-    - ローカルの上位ブランチの状態をローカルの下位ブランチに反映
 
 - git rebase -i --autosquash develop
     - "--autosquash"
