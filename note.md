@@ -45,9 +45,11 @@
 - git marge
     - ローカルの上位ブランチの状態をローカルの下位ブランチに反映
 
-:q syuuryou
+- git rebase -i --autosquash develop
+    - "--autosquash"
+        -  全てのコミットを一つにまとめることができる
 
-
+        
 
 ## Linuxコマンド
 - cd "directory_path"
