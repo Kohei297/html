@@ -42,6 +42,13 @@ def write_list_xlsx_sheet(sheet, input_list, start_row = 1, start_col = 1):     
 
 # 検定関係
 
+def facter_binarization(df, facter_th = ['HbA1c', '>= 5.6']):        #カテゴリー変数を２値化、trueが１、true_valueはリスト
+    df[f'{facter_th[0]}_'] = list(eval(f"(df['{facter_th[0]}']\
+                                       .mask(df['{facter_th[0]}'] {facter_th[1]}, 1)\
+                                       .mask(~(df['{facter_th[0]}'] {facter_th[1]}), 0)\
+                                       .mask(df['{facter_th[0]}'].isnull(), np.nan))"
+                                       ))
+
 def average_delta_check_for_binary_data(df, decimal_point = 3): #０、１カラムを検定
     column_names = df.columns.to_list()
     for column_name in column_names:
