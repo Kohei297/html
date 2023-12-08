@@ -9,3 +9,5 @@ def categorize_(df, categorize_facter):# カテゴリー変数を２値化、tru
         k += f"df['{facters[i]}'] == {true_value} |"
     df[f'categorize_{facters[i]}'] = list(eval(k[: -1]))
     return df
+
+
