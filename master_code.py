@@ -106,3 +106,66 @@ def average_delta_check(aim_facter, df, decimal_point = 3, save_xlsx_name = '検
     sheet.title = '検定結果'
     write_list_xlsx_sheet(sheet, df_lists)
     book.save(f'{save_xlsx_name}.xlsx')  
+
+
+
+
+# 保険関係
+
+def mets_judge(df, metS_facter = [['性別', '腹囲'], ['収縮期血圧', '拡張期血圧'], ['空腹時血糖', 'HbA1c'], ['中性脂肪', 'HDL']]):   #メタボ判定
+    #腹囲判定
+    df['腹囲_'] = (df[metS_facter[0][1]].mask((df[metS_facter[0][0]] == 1) & (df[metS_facter[0][1]] >= 85), True) # 男性       #どちらもデータがあってTrueの場合True
+                            .mask((df[metS_facter[0][0]] == 0) & (df[metS_facter[0][1]] >= 90), True) # 女性    　
+                            .mask((df[metS_facter[0][0]] == 1) & (df[metS_facter[0][1]] < 85), False)  # 男性      #どちらもデータがあってFalseの場合False
+                            .mask((df[metS_facter[0][0]] == 0) & (df[metS_facter[0][1]] < 90), False)  # 女性
+                            .mask((df[metS_facter[0][0]].isnull()) | (df[metS_facter[0][1]].isnull()), np.nan)    #性別 or 腹囲がない場合nan
+    )
+
+    #血圧判定
+    df['血圧_'] = (df[metS_facter[1][0]].mask((df[metS_facter[1][0]] >= 130) | (df[metS_facter[1][1]] >= 85), True)      # どちらかがTrueの場合True
+                            .mask((df[metS_facter[1][0]] < 130) & (df[metS_facter[1][1]] < 85), False)            # どちらもFalseの場合False
+                            .mask((~(df[metS_facter[1][0]] >= 130) & ~(df[metS_facter[1][1]] >= 85))                    # どちらもFalseかnanであって
+                                  & ((df[metS_facter[1][0]].isnull()) | (df[metS_facter[1][1]].isnull())), np.nan)      # どちらもnanの場合nan
+    )
+
+    #血糖判定
+    df['血糖_'] = (df[metS_facter[2][0]].mask((df[metS_facter[2][0]] >= 110) | (df[metS_facter[2][1]] >= 6.0), True)          # どちらかがTrueの場合True
+                            .mask((df[metS_facter[2][0]] < 110) & (df[metS_facter[2][1]] < 6.0), False)                # どちらもFalseの場合False
+                            .mask((~(df[metS_facter[2][0]] >= 110) & ~(df[metS_facter[2][1]] >= 6.0))                   # どちらもFalseかnanであって
+                                  & ((df[metS_facter[2][0]].isnull()) | (df[metS_facter[2][1]].isnull())), np.nan)      # どちらもnanの場合nan
+    )
+
+    #脂質判定
+    df['脂質_'] = (df[metS_facter[3][0]].mask((df[metS_facter[3][0]] >= 150) | (df[metS_facter[3][1]] <= 40), True)           # どちらかがTrueの場合True
+                            .mask((df[metS_facter[3][0]] < 150) & (df[metS_facter[3][1]] > 40), False)               # どちらもFalseの場合False
+                            .mask((~(df[metS_facter[3][0]] >= 150) & ~(df[metS_facter[3][1]] <= 40))                 # どちらもFalseかnanであって     
+                                  & ((df[metS_facter[3][0]].isnull()) | (df[metS_facter[3][1]].isnull())), np.nan)      # どちらもnanの場合nan
+    )
+
+    df['MetS'] = (df['腹囲']
+                .mask((df['腹囲_'] == True) & ((df['血圧_'] + df['血糖_'] + df['脂質_'] >= 2))           
+                       , 'MetS')                                                                        # 腹囲がある & 2つ以上の項目が異常
+
+                .mask((df['腹囲_'] == True) &                                                            # 腹囲異常　& 
+                      (df['血圧_'] + df['血糖_'] + df['脂質_'] == 1) &                                    # 1つの項目が異常 &
+                      (df['血圧_'].notnull()) & (df['血糖_'].notnull()) & (df['脂質_'].notnull())         # 3項目がある(nanがない)
+                       , 's/o_MetS')                                                                    # 腹囲がある & 1つの項目が異常
+
+                .mask((df['腹囲_'] == False) |                                                           # 腹囲正常　or
+                     ((df['腹囲_'] == True) & (df['血圧_'] + df['血糖_'] + df['脂質_'] == 0) &             # 3項目が正常 &
+                      (df['血圧_'].notnull()) & (df['血糖_'].notnull()) & (df['脂質_'].notnull()))        # 3項目がある(nanがない)
+                       , 'not_MetS')                                                                    # 腹囲がない & 異常なし
+
+                .mask((df['腹囲_'].isnull()) |                                                           # 腹囲がない or
+                     ((df['腹囲_'] == True) &                                                            # 腹囲がある &
+                     ((df['血圧_'].isnull()) & (df['血糖_'].isnull()) & (df['脂質_'].isnull()) |          # 3項目がない(nanがある) or
+                      (df['血圧_'] + df['血糖_'] + df['脂質_'] == 1) &                                    # 1つの項目が異常 &
+                     ((df['血圧_'].isnull()) | (df['血糖_'].isnull()) | (df['脂質_'].isnull()))))         # nanがある
+                       , 'N/A')                                                                         # 判定なし                 
+    )
+    
+    df_metS = df[df['MetS'] == 'MetS']
+    df_so_metS = df[df['MetS'] == 's/o_MetS']
+    df_non_metS = df[df['MetS'] == 'not_MetS']
+    df_na_metS = df[df['MetS'] == 'N/A']
+    return df_metS, df_so_metS, df_non_metS, df_na_metS

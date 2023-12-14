@@ -48,6 +48,11 @@
     - "--autosquash"
         -  全てのコミットを一つにまとめることができる
 
+- git hash-object -w faile_name
+    - ''は無しでいい
+    - error: invalid object 100644 が出た時に行う
+    - ファイルのハッシュオブジェクトが壊れているらしい
+    - ハッシュオブジェクトを作り直せる
         
 
 ## Linuxコマンド
