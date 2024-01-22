@@ -10,6 +10,11 @@ import os
 import openpyxl
 import pandas as pd
 from scipy import stats
+import matplotlib.pyplot as plt
+import japanize_matplotlib
+from matplotlib.colors import ListedColormap 
+import matplotlib
+
 
 
 # pip関係, フォルダ関係
@@ -41,6 +46,9 @@ def write_list_xlsx_sheet(sheet, input_list, start_row = 1, start_col = 1):     
 
 
 # 検定関係
+def make_pair(target_list, delta):#リストから指定の間隔をあけて二つを取り出す
+    pairs = [[target_list[i], target_list[i + delta]] for i in range(len(target_list) - delta)]
+    return pairs
 
 def facter_binarization(df, facter_th = ['HbA1c', '>= 5.6']):        #カテゴリー変数を２値化、trueが１、true_valueはリスト
     df[f'{facter_th[0]}_'] = list(eval(f"(df['{facter_th[0]}']\
@@ -106,3 +114,111 @@ def average_delta_check(aim_facter, df, decimal_point = 3, save_xlsx_name = '検
     sheet.title = '検定結果'
     write_list_xlsx_sheet(sheet, df_lists)
     book.save(f'{save_xlsx_name}.xlsx')  
+
+
+
+
+
+# 保険関係
+def mets_judge(df, metS_facter = [['性別', '腹囲'], ['収縮期血圧', '拡張期血圧'], ['空腹時血糖', 'HbA1c'], ['中性脂肪', 'HDL']]):   #メタボ判定
+    #腹囲判定
+    df['腹囲_'] = (df[metS_facter[0][1]].mask((df[metS_facter[0][0]] == 1) & (df[metS_facter[0][1]] >= 85), True) # 男性       #どちらもデータがあってTrueの場合True
+                            .mask((df[metS_facter[0][0]] == 0) & (df[metS_facter[0][1]] >= 90), True) # 女性    　
+                            .mask((df[metS_facter[0][0]] == 1) & (df[metS_facter[0][1]] < 85), False)  # 男性      #どちらもデータがあってFalseの場合False
+                            .mask((df[metS_facter[0][0]] == 0) & (df[metS_facter[0][1]] < 90), False)  # 女性
+                            .mask((df[metS_facter[0][0]].isnull()) | (df[metS_facter[0][1]].isnull()), np.nan)    #性別 or 腹囲がない場合nan
+    )
+
+    #血圧判定
+    df['血圧_'] = (df[metS_facter[1][0]].mask((df[metS_facter[1][0]] >= 130) | (df[metS_facter[1][1]] >= 85), True)      # どちらかがTrueの場合True
+                            .mask((df[metS_facter[1][0]] < 130) & (df[metS_facter[1][1]] < 85), False)            # どちらもFalseの場合False
+                            .mask((~(df[metS_facter[1][0]] >= 130) & ~(df[metS_facter[1][1]] >= 85))                    # どちらもFalseかnanであって
+                                  & ((df[metS_facter[1][0]].isnull()) | (df[metS_facter[1][1]].isnull())), np.nan)      # どちらもnanの場合nan
+    )
+
+    #血糖判定
+    df['血糖_'] = (df[metS_facter[2][0]].mask((df[metS_facter[2][0]] >= 110) | (df[metS_facter[2][1]] >= 6.0), True)          # どちらかがTrueの場合True
+                            .mask((df[metS_facter[2][0]] < 110) & (df[metS_facter[2][1]] < 6.0), False)                # どちらもFalseの場合False
+                            .mask((~(df[metS_facter[2][0]] >= 110) & ~(df[metS_facter[2][1]] >= 6.0))                   # どちらもFalseかnanであって
+                                  & ((df[metS_facter[2][0]].isnull()) | (df[metS_facter[2][1]].isnull())), np.nan)      # どちらもnanの場合nan
+    )
+
+    #脂質判定
+    df['脂質_'] = (df[metS_facter[3][0]].mask((df[metS_facter[3][0]] >= 150) | (df[metS_facter[3][1]] <= 40), True)           # どちらかがTrueの場合True
+                            .mask((df[metS_facter[3][0]] < 150) & (df[metS_facter[3][1]] > 40), False)               # どちらもFalseの場合False
+                            .mask((~(df[metS_facter[3][0]] >= 150) & ~(df[metS_facter[3][1]] <= 40))                 # どちらもFalseかnanであって     
+                                  & ((df[metS_facter[3][0]].isnull()) | (df[metS_facter[3][1]].isnull())), np.nan)      # どちらもnanの場合nan
+    )
+
+    df['MetS'] = (df['腹囲'] 
+                .mask((df['腹囲_'].isnull()) |                                                           # 腹囲がない or                      # 4-1
+                     ((df['腹囲_'] == 1) &                                                               # 腹囲がある &
+                     ((df['血圧_'].isnull()) & (df['血糖_'].isnull()) & (df['脂質_'].isnull()) |          # 3項目がない(nanがある) or           # 4-2 
+                     ((df[['腹囲_', '血圧_', '血糖_', '脂質_']].sum(axis = 1) <= 1) &                                    # 1つの項目が異常 &
+                     ((df['血圧_'].isnull()) | (df['血糖_'].isnull()) | (df['脂質_'].isnull())))))         # nanがある                         # 4-3
+                       , 'N/A')                                                                         # 判定なし         
+
+                .mask((df['腹囲_'] == 0) |                                                               # 腹囲正常　or                       # 3-1
+                     ((df['腹囲_'] == 1) &                                                               # 腹囲異常　&
+                      (df[['腹囲_', '血圧_', '血糖_', '脂質_']].sum(axis = 1) == 0) &                                    # 3項目が正常 &
+                      (df['血圧_'].notnull()) & (df['血糖_'].notnull()) & (df['脂質_'].notnull()))        # 3項目がある(nanがない)              # 3-2
+                       , 'not_MetS')                                                                    # 腹囲がない & 異常なし
+
+                .mask((df['腹囲_'] == 1) &                                                               # 腹囲異常　& 
+                      (df[['腹囲_', '血圧_', '血糖_', '脂質_']].sum(axis = 1) == 1) &                                    # 1つの項目が異常 &
+                      (df['血圧_'].notnull()) & (df['血糖_'].notnull()) & (df['脂質_'].notnull())         # 3項目がある(nanがない)              # 2-1
+                       , 's/o_MetS')                                                                    # 腹囲がある & 1つの項目が異常
+                  
+                .mask(((df['腹囲_'] == 1) & (df[['腹囲_', '血圧_', '血糖_', '脂質_']].sum(axis = 1) >= 2))                # 1-1, 1-2
+                       , 'MetS')                                                                        # 腹囲がある & 2つ以上の項目が異常                                                                     
+    )
+    
+    df_metS = df[df['MetS'] == 'MetS']
+    df_so_metS = df[df['MetS'] == 's/o_MetS']
+    df_non_metS = df[df['MetS'] == 'not_MetS']
+    df_na_metS = df[df['MetS'] == 'N/A']
+    return df_metS, df_so_metS, df_non_metS, df_na_metS
+
+
+
+
+
+# マップ関係
+def colors_scale(legend_unique, cmap_name = 'bwr_r', division_number = 5):                  #色の分け方の定義
+    n_min = 1  #min(arr)
+    n_max = division_number   #max(arr)
+    cmap = plt.colormaps[cmap_name]
+    norm = matplotlib.colors.Normalize(vmin=n_min, vmax=n_max)
+    arr = [cmap(norm(r)) for r in legend_unique]
+    return arr, cmap, norm
+
+def plot_map_colors(df, facter_column = '区分'):                                            # マップの作製
+    legend_unique = sorted(df[facter_column].unique().tolist())
+    labels = {1: '有意に高い', 2: '有意で無いが高い', 3: 'なし' ,4: '有意で無いが低い', 5: '有意に低い'}
+    ratio_legend = [labels[a] for a in legend_unique]
+    target_colors, cmap, norm = colors_scale(legend_unique)
+    cmaps = ListedColormap(target_colors, name="custom")
+    fig, ax = plt.subplots(figsize=(10, 10))
+    ax.axis('off')                      # 軸を表示しない
+    df.plot(
+        ax = ax, 
+        column = facter_column, 
+        categorical = True,
+        cmap = cmaps,
+        edgecolor = '#000000', 
+        linewidth = 1, 
+        legend = True, 
+        legend_kwds={'labels': ratio_legend}
+        )
+
+    # #ラベルを付ける
+    # for i, txt in enumerate(df['市町村名']):
+    #     ax.annotate(txt, (df.geometry[i].centroid.x, df.geometry[i].centroid.y),fontsize= 6,horizontalalignment='center', verticalalignment='center')
+    # fig.text(0.5, 0.1, '※本資料を活用するには、必ず、各市町村の表も合わせて解釈を行うこと。', ha='center',fontsize= 10, horizontalalignment="center",verticalalignment="center")
+
+
+
+
+
+
+
